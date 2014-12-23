@@ -1,0 +1,48 @@
+#!/usr/bin/env python
+#-*-coding:utf8-*-
+
+
+from sys import argv
+
+
+indicator = 1
+T = argv[2]
+#T = [int(x) for x in argv[2].replace(',','.').split(":")] #please write time 
+# with this format: "h:m:s,ms" 
+
+
+def addtime(a,b):
+    """a and b are formatted strings like this : h:m:s,ms"""
+    r = [None,None,None,None]
+    a = a.replace(',','.').split(':')
+    b = b.replace(',','.').split(':')
+    a[0] = int(a[0])
+    a[1] = int(a[1])
+    b[0] = int(b[0])
+    b[1] = int(b[1])
+    a[2] = float(a[2])
+    b[2] = float(b[2])
+    r[3] = int( (1000*(a[2]+b[2])) % 1000 ) #milliseconds 
+    r[2] = int( a[2] + b[2] ) % 60 #seconds
+    r[1] = ( a[1] + b[1] + int(a[2]+b[2]) / 60) % 60 #minutes
+    r[0] = a[0] + b[0] + (a[1] + b[1] + int(a[2]+b[2]) / 60) / 60 #hours
+    return "%02d:%02d:%02d,%03d" % tuple(r)
+
+
+with open(argv[1], 'r') as F:
+    num = F.readline().rstrip()
+    while indicator == 1:
+        sub = [num]
+        line = F.readline().rstrip()
+        while line != '':
+#            print line
+            sub.append(line)
+            line = F.readline().rstrip()
+        time = sub[1].split(" --> ")
+        newtime = [addtime(a,T) for a in sub[1].split(" --> ")]
+        print sub[0] + "\n" + " --> ".join(newtime) + "\n" + "\n".join(sub[2:]) + "\n"
+#        print "\n".join(sub) + "\n"
+        num = F.readline().rstrip()
+        if num == '':
+            indicator = 0
+        

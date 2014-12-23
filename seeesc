@@ -1,0 +1,10 @@
+#!/usr/bin/env python
+
+"""
+Display a string from standard input or file with escaped characters NOT interpreted
+(explicitly printed with the backslashes).
+"""
+
+import fileinput
+
+print '\n'.join(map(repr, fileinput.input()))

@@ -1,0 +1,126 @@
+#!/usr/bin/env Rscript
+
+#######################################################################
+# Plot the distribution of a list of numbers taken from standard input.
+# example:
+# cut -f 5 {bedfile} | ./distrib.R {output_name.pdf}
+#######################################################################
+
+library(optparse)
+
+
+option_list <- list(
+				make_option(c("-v", "--verbose"), action="store_true",
+							default=FALSE,
+							help="display more information (specified options)"),
+				make_option(c("-q", "--quantiles"), type="integer",
+							default=10, metavar='N',
+							help="Number of quantiles to be computed\n\t\tset to 0, 1, or negative will skip the computation"),
+				make_option(c("-d", "--density"), action="store_true",
+							default=FALSE,
+							help="display density instead of discrete classes"),
+				make_option(c("-m", "--main"), type="character",
+							default="Distribution", metavar='TITLE',
+							help="title of the plot"),
+				make_option(c("-b", "--breaks"),
+							default="Sturges", metavar='N',
+							help="Number of classes in the histogram\
+		Values: either an integer or 'max'"),
+				make_option("--xmax", type='numeric', metavar='X',
+							help="upper limit on the x axis"),
+				make_option("--cex.axis", type="numeric",
+							default=0.75, metavar='RATIO',
+							help="size of axes tick labels (default 0.75)")
+				)
+
+ParsedOptions <- OptionParser(usage="usage: %prog [options] <output name.pdf>",
+							  prog='distrib.R',
+							  option_list=option_list,
+							  description="\
+%prog takes numbers from standard input and shows their distribution:\
+	- quantiles;\
+	- a histogram, or a density plot in a pdf file.",
+							  epilogue="\
+Examples:\
+	#Run without any arguments to display the help:\
+	./distrib.R\
+\
+	#input the numbers from a file:\
+	./distrib.R out.pdf <file\
+\
+	#do some processing on a file before piping in distrib.R:\
+	cut -f 5 file.csv | ./distrib.R out.pdf"
+)
+
+arguments <- parse_args( ParsedOptions, positional_arguments=c(0,1))
+if ( length(arguments$args) == 0 ) {
+	print_help(ParsedOptions)
+	quit()
+} else {
+	out <- arguments$args
+	opt <- arguments$options
+}
+
+if ( is.null(out) ) {
+	print_help(ParsedOptions)
+	quit()
+}
+
+
+if ( opt$verbose ) {
+	write("Options in effect:", stdout())
+	write(paste("Argument 1 (output name):", out), stdout())
+	for (i in 1:length(opt)) {
+		write(paste0("--", names(opt)[i], " :\t", opt[[i]]), stdout())
+	}
+	write("", stdout())
+}
+
+
+f <- file("stdin")
+open(f)
+
+scores = as.numeric(read.csv(f)[,1])
+
+if ( opt$quantiles > 1) {
+	q <- quantile(scores, probs=seq(0, 1, 1/opt$quantiles), na.rm=T)
+	write("Quantiles: ", stdout())
+	print(q)
+} else {
+	q <- NULL
+}
+
+m <- round(mean(scores, na.rm=T), 3)
+write(paste("Mean:", m), stdout())
+
+
+if ( !is.null(opt$xmax) ) {
+	scores <- scores[scores <= opt$xmax]
+}
+
+
+pdf(out)
+
+if ( opt$density ) {
+	d <- density(scores, na.rm=T)
+	plot(d , main=opt$main, cex.axis=opt$cex.axis)
+} else {
+	hist(scores, breaks=ifelse(opt$breaks=='max', max(scores), opt$breaks),
+		 col='grey', ylab='Count', main=opt$main, cex.axis=opt$cex.axis)
+}
+
+text( 0.98*par("usr")[2], 0.75*par("usr")[4],
+	 paste(paste("mean :", m),
+		   paste(names(q) , sapply(q, function(e) round(e,1)), sep = " : " , collapse = "\n"),
+		   sep = "\n"),
+	 adj = 1 )
+
+invisible(dev.off())
+
+
+write( paste ( "Plot saved in:" , out) , stderr() )
+
+if ( opt$verbose ) {
+	write( "\nComputational time:", stdout())
+	print( proc.time() )
+}
