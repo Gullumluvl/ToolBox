@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 #-*-coding:utf8-*-
-
+"""syncsub synchronizes subtitles files (.srt) when times aren't
+fitting with the video.
+USE: ./syncsub subs.srt 00:00:24,000 > newsubs.srt"""
 
 from sys import argv
 
 
 indicator = 1
 T = argv[2]
-#T = [int(x) for x in argv[2].replace(',','.').split(":")] #please write time 
-# with this format: "h:m:s,ms" 
 
 
 def addtime(a,b):
@@ -35,13 +35,10 @@ with open(argv[1], 'r') as F:
         sub = [num]
         line = F.readline().rstrip()
         while line != '':
-#            print line
             sub.append(line)
             line = F.readline().rstrip()
-        time = sub[1].split(" --> ")
         newtime = [addtime(a,T) for a in sub[1].split(" --> ")]
         print sub[0] + "\n" + " --> ".join(newtime) + "\n" + "\n".join(sub[2:]) + "\n"
-#        print "\n".join(sub) + "\n"
         num = F.readline().rstrip()
         if num == '':
             indicator = 0

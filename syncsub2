@@ -1,0 +1,100 @@
+#!/usr/bin/env python
+#-*-coding:utf8-*-
+
+"""
+syncsub2 synchronizes subtitles files (.srt) when times aren't fitting \
+with the video.
+
+USE: ./syncsub2 subs.srt 00:24,000 > newsubs.srt
+     ./syncsub2 subs.srt +00:12,000 > newsubs.srt
+     ./syncsub2 subs.srt -00:12,000 > newsubs.srt
+where the time format is minutes:seconds[,millisec]
+"""
+
+
+from sys import argv, exit, stderr
+import datetime as dt
+
+
+def parseTimedelta(string):
+    """parse a formatted time string into a dt.timedelta object
+    Format must be the following: M:S,ms or M:S:ms
+    'string' is the argument taken from the command line."""
+    parsed = string.replace(",", ":").split(":") #parse time string
+    if len(parsed) == 3:
+        # set milliseconds string to size 3: pad with zeros and truncate.
+        parsed[2] += '0' * 2
+        parsed[2] = parsed[2][:3]
+        return dt.timedelta(minutes = int(parsed[0]),
+                            seconds = int(parsed[1]),
+                            milliseconds = int(parsed[2]))
+    else:
+        return dt.timedelta(minutes = int(parsed[0]),
+                            seconds = int(parsed[1]))
+
+
+def parseDatetime(string):
+    """parse a formatted time string into a dt.datetime object.
+    Same format as in parseTimedelta.
+    'string' is any time string in the subtitle file."""
+    return dt.datetime.strptime(string+'000', "%H:%M:%S,%f")
+
+def formatTime(d):
+    """print a formatted string from a dt.datetime object"""
+    try:
+        return d.strftime("%H:%M:%S,%f")[:-3]
+    except ValueError:
+        exit("Error:\nSubstracted time is greater than the first interval.\n"
+             "Please choose an appropriate time to substract to subtitles times.")
+
+
+if len(argv)<3:
+    stderr.write(__doc__)
+    rcode = 0 if ("-h" in argv or "--help" in argv) else 1
+    exit(rcode)
+
+
+sign = argv[2][0]
+
+if (sign == "+") or (sign == "-"):
+    timestring = argv[2][1:]
+else:
+    sign = "+"
+    timestring = argv[2]
+
+try:
+    delta = parseTimedelta(timestring)
+except ValueError,e:
+    exit(__doc__ + "\nError: " + str(e) + "\n")
+
+
+if sign == "-":
+    delta = - delta
+
+
+with open(argv[1], 'r') as F:
+    num = F.readline().rstrip()
+    indicator = True
+    while indicator:
+        sub = [num] #initialize the subtitle block
+        line = F.readline().rstrip()
+        while line != '':
+            sub.append(line)
+            line = F.readline().rstrip()
+            try:
+                newtime = [formatTime(parseDatetime(a)+delta) for a in \
+                           sub[1].split(" --> ")]
+            except IndexError:
+                exit("Error: Wrong input file or trying to redirect output "
+                     "in the input file.")
+        try:
+            print sub[0] + "\n" + " --> ".join(newtime)
+        except NameError:
+            exit("Error: Empty input file or trying to redirect output in "
+                 "the input file.")
+        
+        print "\n".join(sub[2:]) + "\n"
+        num = F.readline().rstrip()
+        if num == '':
+            indicator = False
+        

@@ -1,0 +1,89 @@
+#!/usr/bin/python
+import sys
+import errno
+import argparse
+import fileinput
+import itertools
+import re
+
+#_MIN_PADDING = 4
+def padded_table(table, min_padding):
+    """Takes a sequence of iterables, each of which represent a row in a table.
+    Values are converted to string, and padded with whitespace such that each
+    column is separated from its adjacent columns by at least 4 spaces. Empty
+    cells or whitespace in values are not allowed.
+
+    If a string is included instead of a row, this value is added as is. Note
+    that these lines should be whitespace only, or start with a '#' if the
+    resulting table is to be readable with 'parse_padded_table'."""
+    sizes = []
+    str_rows = []
+    for row in table:
+        row = map(str, row)
+        sizes = map(max, itertools.izip_longest(sizes, map(len, row),
+                                               fillvalue=0))
+        str_rows.append(row)
+
+    fmt_strs = []
+    for size in sizes:
+        #fmt_strs.append("{: <%i}" % (size + _MIN_PADDING,))
+        fmt_strs.append("{: <%i}" % (size + min_padding,))
+    fmt_strs[-1] = "{}"
+
+    for index in xrange(1, len(fmt_strs)):
+        fmt_strs[index] = fmt_strs[index - 1] + fmt_strs[index]
+
+    for row in str_rows:
+        fmt_str = fmt_strs[len(row) - 1]
+        yield fmt_str.format(*row)
+
+
+def parse_args(argv):
+    default_split = '\t'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('filenames', metavar="INPUT", nargs='*')
+    parser.add_argument("--single-tab", dest="split",
+                        action="store_const", const='\t', default=default_split,
+                        help="Split line by single tab")
+    parser.add_argument("--single-space", dest="split",
+                        action="store_const", const=' ', default=default_split,
+                        help="Split line by single space")
+    parser.add_argument("--any-whitespace", dest="split",
+                        action="store_const", const=None, default=default_split,
+                        help="Split line by sequence of whitespace")
+    parser.add_argument("--single-comma", dest="split",
+                        action="store_const", const=',(?! )', default=default_split,
+                        help="Split line by comma (except if followed by space) [Default]")
+    parser.add_argument("--sep", dest="split", default=default_split,
+                        help="custom splitting character")
+    parser.add_argument("--no-quotes", dest="quotes",
+                        action="store_const", const=False, default=True,
+                        help="remove double quotes")
+    parser.add_argument('-p', '--min-padding', dest='min_padding', default=4,
+                        type=int, help="minimal number of spaces between fields")
+    parser.add_argument('-w', '--wrap', dest='wrap', default=100,
+                        type=int, help="max width of each 'cell'. Text exceeding will be wrapped to next line")
+    return parser.parse_args(argv)
+
+
+def main(argv):
+    rows = []
+    args = parse_args(argv)
+    p = re.compile(args.split)
+    if args.quotes == True:
+        for line in fileinput.input(args.filenames):
+            rows.append(p.split(line.rstrip('\n\r')))
+    else:
+        for line in fileinput.input(args.filenames):
+            rows.append(p.split(line.replace("\"","").rstrip('\n\r')))
+
+    try:
+        for line in padded_table(rows, args.min_padding):
+            print line
+    except IOError, error:
+        if error.errno != errno.EPIPE:
+            raise
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
