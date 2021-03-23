@@ -64,7 +64,7 @@ else:
 
 try:
     delta = parseTimedelta(timestring)
-except ValueError,e:
+except ValueError as e:
     exit(__doc__ + "\nError: " + str(e) + "\n")
 
 
@@ -88,12 +88,12 @@ with open(argv[1], 'r') as F:
                 exit("Error: Wrong input file or trying to redirect output "
                      "in the input file.")
         try:
-            print sub[0] + "\n" + " --> ".join(newtime)
+            print(sub[0] + "\n" + " --> ".join(newtime))
         except NameError:
             exit("Error: Empty input file or trying to redirect output in "
                  "the input file.")
         
-        print "\n".join(sub[2:]) + "\n"
+        print("\n".join(sub[2:]) + "\n")
         num = F.readline().rstrip()
         if num == '':
             indicator = False

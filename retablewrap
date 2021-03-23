@@ -3,8 +3,11 @@ import sys
 import errno
 import argparse
 import fileinput
-import itertools
 import re
+try:
+    from itertools import izip_longest as zip_longest
+except ImportError:
+    from itertools import zip_longest
 
 #_MIN_PADDING = 4
 def padded_table(table, min_padding):
@@ -19,9 +22,8 @@ def padded_table(table, min_padding):
     sizes = []
     str_rows = []
     for row in table:
-        row = map(str, row)
-        sizes = map(max, itertools.izip_longest(sizes, map(len, row),
-                                               fillvalue=0))
+        row = list(map(str, row))
+        sizes = map(max, zip_longest(sizes, map(len, row), fillvalue=0))
         str_rows.append(row)
 
     fmt_strs = []
@@ -30,7 +32,7 @@ def padded_table(table, min_padding):
         fmt_strs.append("{: <%i}" % (size + min_padding,))
     fmt_strs[-1] = "{}"
 
-    for index in xrange(1, len(fmt_strs)):
+    for index in range(1, len(fmt_strs)):
         fmt_strs[index] = fmt_strs[index - 1] + fmt_strs[index]
 
     for row in str_rows:
@@ -64,7 +66,7 @@ def parse_args(argv):
                         action="store_const", const=' ', default=default_split,
                         help="Split line by single space")
     parser.add_argument("--any-whitespace", dest="split",
-                        action="store_const", const=None, default=default_split,
+                        action="store_const", const=r'\s+', default=default_split,
                         help="Split line by sequence of whitespace")
     parser.add_argument("--single-comma", dest="split",
                         action="store_const", const=',(?! )', default=default_split,
@@ -77,7 +79,7 @@ def parse_args(argv):
     parser.add_argument('-p', '--min-padding', dest='min_padding', default=4,
                         type=int, help="minimal number of spaces between fields")
     parser.add_argument('-w', '--wrap', dest='wrap', default=100,
-                        type=int, help="max width of each 'cell'. Text exceeding will be wrapped to next line")
+                        type=int, help="max width of each 'cell'. Text exceeding will be wrapped to next line [Not implemented]")
     parser.add_argument('-m', '--multiline', dest='multiline', action='store_true',
                         help="input csv is multiline (inside quoted cell)")
     return parser.parse_args(argv)
@@ -90,7 +92,7 @@ def main(argv):
     if args.multiline:
         for trueline in multiline_read(args.filenames):
             trueline = trueline.rstrip()
-            for line in itertools.izip_longest(*[x.split('\n') for x in p.split(trueline)], fillvalue=''):
+            for line in zip_longest(*[x.split('\n') for x in p.split(trueline)], fillvalue=''):
                 rows.append(line)
 
     elif args.quotes == True:
@@ -102,8 +104,8 @@ def main(argv):
 
     try:
         for line in padded_table(rows, args.min_padding):
-            print line
-    except IOError, error:
+            print(line)
+    except IOError as error:
         if error.errno != errno.EPIPE:
             raise
 
