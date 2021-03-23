@@ -38,6 +38,21 @@ def padded_table(table, min_padding):
         yield fmt_str.format(*row)
 
 
+def multiline_read(filenames):
+    opened_quotes = 0
+    line = ''
+    for fileline in fileinput.input(filenames):
+        line += fileline
+        for c in fileline:
+            if c == '"':
+                opened_quotes = 1 - opened_quotes
+        if not opened_quotes:
+            yield line
+            line = ''
+    if line:
+        yield line
+
+
 def parse_args(argv):
     default_split = '\t'
     parser = argparse.ArgumentParser()
@@ -63,6 +78,8 @@ def parse_args(argv):
                         type=int, help="minimal number of spaces between fields")
     parser.add_argument('-w', '--wrap', dest='wrap', default=100,
                         type=int, help="max width of each 'cell'. Text exceeding will be wrapped to next line")
+    parser.add_argument('-m', '--multiline', dest='multiline', action='store_true',
+                        help="input csv is multiline (inside quoted cell)")
     return parser.parse_args(argv)
 
 
@@ -70,7 +87,13 @@ def main(argv):
     rows = []
     args = parse_args(argv)
     p = re.compile(args.split)
-    if args.quotes == True:
+    if args.multiline:
+        for trueline in multiline_read(args.filenames):
+            trueline = trueline.rstrip()
+            for line in itertools.izip_longest(*[x.split('\n') for x in p.split(trueline)], fillvalue=''):
+                rows.append(line)
+
+    elif args.quotes == True:
         for line in fileinput.input(args.filenames):
             rows.append(p.split(line.rstrip('\n\r')))
     else:

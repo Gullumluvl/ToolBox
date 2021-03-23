@@ -3,8 +3,26 @@
 """
 Display a string from standard input or file with escaped characters NOT interpreted
 (explicitly printed with the backslashes).
+
+Well... there is another way:
+in .bash_aliases:
+    alias sedesc="sed -n l"
+    or
+    alias sedesc="sed -n 'l 1000'" to set width to 1000 (avoid printing line continuation character)
 """
 
+
+import re
 import fileinput
 
-print '\n'.join(map(repr, fileinput.input()))
+
+special_utf8 = re.compile(r'\\x([a-z0-9]{2})')
+
+
+for line in fileinput.input():
+    r = repr(line)[1:-1]
+    r = r.replace(r'\t', '\033[0;33m\\t\033[0m') # yellow tab
+    r = r.replace(r'\n', '\033[1;30m\\n\033[0m') # darkgrey newline
+    r = r.replace(r'\r', '\033[0;37m\\r\033[0m') # grey carriage return
+    r = special_utf8.sub('\033[0;34m\\x\\1\033[0m', r) # light blue, any other utf8
+    print r
